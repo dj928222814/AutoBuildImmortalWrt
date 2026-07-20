@@ -8,49 +8,33 @@ else
   echo "🔄 正在同步第三方软件仓库 Cloning apk file repo..."
   git clone --depth=1 https://github.com/wukongdaily/apk.git /tmp/store-apk-repo
 
-  # 📥 ============== 【解压本地 5G 压缩包】==============
-  echo "📦 检测到根目录下上传的 5G 模组压缩包，开始本地解压注入..."
+  # 📥 ============== 【欺骗性合流方案：将 QModem 注入 extra-packages 暂存区】==============
+  echo "📦 开始将本地 5G 模组包混入 extra-packages 暂存区..."
   
-  # 提前创建最终的合法包池目录
-  mkdir -p /home/build/immortalwrt/packages/
+  # 提前创建大佬脚本必须的输入暂存目录
+  mkdir -p /home/build/immortalwrt/extra-packages
   
+  # 如果你上传的压缩包存在，直接解压到大佬的暂存区里，让他当成自己的包去索引
   if [ -f "./QModem-arm64_apk.tar.gz" ]; then
-      mkdir -p /tmp/qmodem-local-unpacked
-      tar -zxf ./QModem-arm64_apk.tar.gz -C /tmp/qmodem-local-unpacked/
-      
-      # 深度搜刮解压出来的所有 .apk 文件，强制拷贝进合法包池
-      find /tmp/qmodem-local-unpacked/ -name "*.apk" -exec cp {} /home/build/immortalwrt/packages/ \; 2>/dev/null || true
-      echo "✅ 本地 5G 压缩包内的所有插件已注入 packages 目录！"
+      echo "解压 QModem 到 extra-packages 目录下..."
+      # 直接解压到 extra-packages，这样大佬的脚本在扫描时会连同你的 5G 包一起扫进去！
+      tar -zxf ./QModem-arm64_apk.tar.gz -C /home/build/immortalwrt/extra-packages/
+      echo "✅ QModem-custom 实体已成功混入暂存池"
   else
       echo "❌ 错误：在项目根目录下未找到 'QModem-arm64_apk.tar.gz' 文件！"
   fi
   # =========================================================================================
 
-  # 2. 拷贝 run/arm64 下所有 run 文件和apk文件 到 extra-packages 目录
-  mkdir -p /home/build/immortalwrt/extra-packages
+  # 2. 正常拷贝悟空大佬源里本身的文件到 extra-packages 目录
   cp -r /tmp/store-apk-repo/run/arm64-a53/* /home/build/immortalwrt/extra-packages/ 2>/dev/null || true
+  echo "✅ 悟空大佬的源文件已拷贝完毕"
 
-  echo "✅ Run files copied to extra-packages:"
-  # 解压并拷贝悟空大佬的apk到packages目录
+  echo "🚀 开始执行大总管脚本，让它统一处理和生成所有包的索引..."
+  # 这个脚本现在会把悟空大佬的包和你刚解压出来的 5G 插件一并扫描，并帮它们规整到最终的源里去
   sh shell/apk-prepare-packages.sh
   
-  # 🛠️ 【关键修复核心】：强行更新新版 APK 包管理器的本地索引 🛠️
-  echo "🔄 正在强制生成 packages 文件夹的 APK 签名与索引..."
-  cd /home/build/immortalwrt/packages/
-  
-  # 如果系统带有了 apk 工具，直接在本地生成 packages.adb 索引文件
-  if command -v apk &> /dev/null; then
-      apk index -o packages.adb *.apk 2>/dev/null || true
-      echo "✅ 本地 APK 索引生成完毕！"
-  else
-      # 备用方案：尝试使用编译链中的 host 级 apk 工具生成索引
-      /mnt/disk/openwrt-25.12/staging_dir/host/bin/apk index -o packages.adb *.apk 2>/dev/null || true
-      echo "✅ 备用 APK 索引生成完毕！"
-  fi
-  cd - # 切回原目录继续执行编译
-
-  echo "🔍 正在列出最终合法包池内容，确认 qmodem 相关 apk 是否存在："
-  ls -lah /home/build/immortalwrt/packages/ | grep -E "qmodem|sms-forwarder" || echo "⚠️ 糟糕，包池里依然没有找到 QModem 的 apk 文件！"
+  echo "🔍 检查两军会师后的 packages 目录列表："
+  ls -lah /home/build/immortalwrt/packages/ | grep -E "qmodem|sms-forwarder" || echo "⚠️ 警告：大总管脚本依然没有把 5G 插件挪过来！"
 fi
 
 
