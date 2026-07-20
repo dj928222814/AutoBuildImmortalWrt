@@ -8,24 +8,21 @@ else
   echo "🔄 正在同步第三方软件仓库 Cloning apk file repo..."
   git clone --depth=1 https://github.com/wukongdaily/apk.git /tmp/store-apk-repo
 
-  # 📥 ============== 【直接解压本地仓库刚刚上传的 5G 压缩包】==============
+  # 📥 ============== 【解压本地 5G 压缩包】==============
   echo "📦 检测到根目录下上传的 5G 模组压缩包，开始本地解压注入..."
   
   # 提前创建最终的合法包池目录
   mkdir -p /home/build/immortalwrt/packages/
   
-  # 判断你刚刚上传到根目录下的文件是否存在
   if [ -f "./QModem-arm64_apk.tar.gz" ]; then
       mkdir -p /tmp/qmodem-local-unpacked
-      
-      echo "解压本地 QModem-arm64_apk.tar.gz..."
       tar -zxf ./QModem-arm64_apk.tar.gz -C /tmp/qmodem-local-unpacked/
       
       # 深度搜刮解压出来的所有 .apk 文件，强制拷贝进合法包池
       find /tmp/qmodem-local-unpacked/ -name "*.apk" -exec cp {} /home/build/immortalwrt/packages/ \; 2>/dev/null || true
-      echo "✅ 本地 5G 压缩包内的所有插件已成功注入 packages 目录！"
+      echo "✅ 本地 5G 压缩包内的所有插件已注入 packages 目录！"
   else
-      echo "❌ 错误：在项目根目录下未找到 'QModem-arm64_apk.tar.gz' 文件，请检查工作流拉取状态！"
+      echo "❌ 错误：在项目根目录下未找到 'QModem-arm64_apk.tar.gz' 文件！"
   fi
   # =========================================================================================
 
@@ -34,11 +31,26 @@ else
   cp -r /tmp/store-apk-repo/run/arm64-a53/* /home/build/immortalwrt/extra-packages/ 2>/dev/null || true
 
   echo "✅ Run files copied to extra-packages:"
-  # 解压并拷贝apk到packages目录（大总管脚本会在此刻把两边的包做好统一索引）
+  # 解压并拷贝悟空大佬的apk到packages目录
   sh shell/apk-prepare-packages.sh
   
+  # 🛠️ 【关键修复核心】：强行更新新版 APK 包管理器的本地索引 🛠️
+  echo "🔄 正在强制生成 packages 文件夹的 APK 签名与索引..."
+  cd /home/build/immortalwrt/packages/
+  
+  # 如果系统带有了 apk 工具，直接在本地生成 packages.adb 索引文件
+  if command -v apk &> /dev/null; then
+      apk index -o packages.adb *.apk 2>/dev/null || true
+      echo "✅ 本地 APK 索引生成完毕！"
+  else
+      # 备用方案：尝试使用编译链中的 host 级 apk 工具生成索引
+      /mnt/disk/openwrt-25.12/staging_dir/host/bin/apk index -o packages.adb *.apk 2>/dev/null || true
+      echo "✅ 备用 APK 索引生成完毕！"
+  fi
+  cd - # 切回原目录继续执行编译
+
   echo "🔍 正在列出最终合法包池内容，确认 qmodem 相关 apk 是否存在："
-  ls -lah /home/build/immortalwrt/packages/ | grep -E "qmodem|sms-forwarder|ndisc6" || echo "⚠️ 糟糕，包池里依然没有找到 QModem 的 apk 文件！"
+  ls -lah /home/build/immortalwrt/packages/ | grep -E "qmodem|sms-forwarder" || echo "⚠️ 糟糕，包池里依然没有找到 QModem 的 apk 文件！"
 fi
 
 
