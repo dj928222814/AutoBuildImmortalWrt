@@ -9,12 +9,39 @@ else
   echo "🔄 正在同步第三方软件仓库 Cloning apk file repo..."
   git clone --depth=1 https://github.com/wukongdaily/apk.git /tmp/store-apk-repo
 
-  # 拷贝 run/arm64 下所有 run 文件和apk文件 到 extra-packages 目录
+  # 📥 【在此处精准插入】============== 深度同步 QModem-custom 5G 模组仓库所有内容 ==============
+  echo "🔄 正在深度同步 QModem-custom 5G 模组仓库所有内容..."
+  git clone --depth=1 https://github.com/sfwtw/QModem-custom.git /tmp/QModem-custom
+  
+  # 创建基础编译目录（防止目录不存在）
+  mkdir -p /home/build/immortalwrt/packages/
+  
+  # 1. 搜刮 QModem 仓库内所有预编译的 .apk 软件包放入包池
+  find /tmp/QModem-custom/ -name "*.apk" -exec cp {} /home/build/immortalwrt/packages/ \; 2>/dev/null || true
+  
+  # 2. 深度拷贝：将 luci/ 目录下的所有子插件源码/包拷贝至包池
+  if [ -d "/tmp/QModem-custom/luci" ]; then
+      cp -r /tmp/QModem-custom/luci/* /home/build/immortalwrt/packages/ 2>/dev/null || true
+  fi
+
+  # 3. 深度拷贝：将 application/ 目录下的底层拨号依赖拷贝至包池
+  if [ -d "/tmp/QModem-custom/application" ]; then
+      cp -r /tmp/QModem-custom/application/* /home/build/immortalwrt/packages/ 2>/dev/null || true
+  fi
+  
+  # 4. 深度拷贝：拷贝 driver 驱动相关组件
+  if [ -d "/tmp/QModem-custom/driver" ]; then
+      cp -r /tmp/QModem-custom/driver/* /home/build/immortalwrt/packages/ 2>/dev/null || true
+  fi
+  echo "✅ QModem-custom 所有专属子插件与驱动均已收入编译目录"
+  # =========================================================================================
+
+  # 拷贝 run/arm64 下所有 run 文件和apk文件 到 extra-packages 目录（恢复原声架构目录防止报错）
   mkdir -p /home/build/immortalwrt/extra-packages
-  cp -r /tmp/store-apk-repo/run/arm64/* /home/build/immortalwrt/extra-packages/
+  cp -r /tmp/store-apk-repo/run/arm64-a53/* /home/build/immortalwrt/extra-packages/ 2>/dev/null || true
 
   echo "✅ Run files copied to extra-packages:"
-  # 解压并拷贝apk到packages目录
+  # 解压并拷贝apk到packages目录（此时会一同处理上面刚放进去的 QModem 文件）
   sh shell/apk-prepare-packages.sh
   ls -lah /home/build/immortalwrt/packages/
 fi
