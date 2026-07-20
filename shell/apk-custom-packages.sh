@@ -170,3 +170,10 @@
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-wifischedule-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-xinetd-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-xlnetacc-zh-cn"
+# ============================================================================
+# =================== QModem-custom 截图仓库专属全家桶激活 =====================
+# ============================================================================
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-qmodem luci-i18n-qmodem-zh-cn luci-app-qmodem-next"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-qmodem-sms luci-app-qmodem-mwan luci-app-qmodem-hc luci-app-qmodem-ttl"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-sms-forwarder luci-i18n-sms-forwarder-zh-cn luci-app-sms-forwarder-next"
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES ubus-at-daemon ndisc6 picocom minicom sms-tool"
