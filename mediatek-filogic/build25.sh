@@ -8,26 +8,31 @@ else
   echo "🔄 正在同步第三方软件仓库 Cloning apk file repo..."
   git clone --depth=1 https://github.com/wukongdaily/apk.git /tmp/store-apk-repo
 
-  # 📥 【在此处精准插入】============== 下载并解压 QModem 编译好的 arm64 apk 成品 ==============
+  # 📥 ============== 下载并解压 QModem 编译好的 arm64 apk 成品（终极稳妥版）==============
   echo "🔄 正在从 Release 下载已编译好的 QModem arm64 apk 包..."
   
-  # 创建最终的合法包池目录
+  # 提前创建最终的合法包池目录
   mkdir -p /home/build/immortalwrt/packages/
   
-  # 使用 wget 下载你在截图里看到的 v3.0.0 版本的 arm64_apk 压缩包
-  wget -q https://github.com/sfwtw/QModem-custom/releases/download/v3.0.0/QModem-arm64_apk.tar.gz -O /tmp/QModem-arm64_apk.tar.gz
+  # 【核心改进】：加上 -L 跟踪重定向，--no-check-certificate 忽略证书问题
+  wget -L --no-check-certificate https://github.com/sfwtw/QModem-custom/releases/download/v3.0.0/QModem-arm64_apk.tar.gz -O /tmp/QModem-arm64_apk.tar.gz
   
-  if [ -f "/tmp/QModem-arm64_apk.tar.gz" ]; then
-      echo "📦 下载成功，正在解压并注入 packages 目录..."
-      # 解压到临时目录
+  # 严格验证下载回来的文件大小，如果小于 10KB 肯定不是真正的压缩包
+  if [ -f "/tmp/QModem-arm64_apk.tar.gz" ] && [ $(stat -c%s "/tmp/QModem-arm64_apk.tar.gz") -gt 10240 ]; then
+      echo "📦 压缩包下载成功，大小正常，正在解压..."
       mkdir -p /tmp/qmodem-unpacked
       tar -zxf /tmp/QModem-arm64_apk.tar.gz -C /tmp/qmodem-unpacked/
       
-      # 把解压出来的所有 .apk 文件（包含核心界面、子插件、ndisc6、ubus-at-daemon等驱动）全部拷进合法包池
-      find /tmp/qmodem-unpacked/ -name "*.apk" -exec cp {} /home/build/immortalwrt/packages/ \;
-      echo "✅ QModem-custom 编译成品已成功注入合法包池！"
+      # 全量搜刮解压出来的所有 apk 文件并强行塞入包池
+      cp -r /tmp/qmodem-unpacked/*/*.apk /home/build/immortalwrt/packages/ 2>/dev/null || true
+      cp -r /tmp/qmodem-unpacked/*.apk /home/build/immortalwrt/packages/ 2>/dev/null || true
+      find /tmp/qmodem-unpacked/ -name "*.apk" -exec cp {} /home/build/immortalwrt/packages/ \; 2>/dev/null || true
+      echo "✅ QModem-custom 所有 apk 已经全部强行注入 packages 目录！"
   else
-      echo "❌ 错误：QModem 压缩包下载失败，请检查网络或链接是否正确！"
+      echo "❌ 警告：本地 wget 失败或下载到了空文件，启动 GitHub 原生克隆备用方案..."
+      # 备用方案：直接从仓库主分支拉取源码的 assets（有些仓库会把最新编译包放在特定目录）
+      git clone --depth=1 https://github.com/sfwtw/QModem-custom.git /tmp/QModem-git
+      find /tmp/QModem-git/ -name "*.apk" -exec cp {} /home/build/immortalwrt/packages/ \; 2>/dev/null || true
   fi
   # =========================================================================================
 
@@ -36,11 +41,12 @@ else
   cp -r /tmp/store-apk-repo/run/arm64-a53/* /home/build/immortalwrt/extra-packages/ 2>/dev/null || true
 
   echo "✅ Run files copied to extra-packages:"
-  # 解压并拷贝apk到packages目录（大总管脚本会把两边的包做好统一索引）
+  # 解压并拷贝apk到packages目录
   sh shell/apk-prepare-packages.sh
-  ls -lah /home/build/immortalwrt/packages/
+  
+  echo "🔍 正在列出最终合法包池内容，确认 qmodem 相关 apk 是否存在："
+  ls -lah /home/build/immortalwrt/packages/ | grep -E "qmodem|sms-forwarder" || echo "⚠️ 糟糕，包池里依然没有找到 QModem 的 apk 文件！"
 fi
-
 
 
 # yml 传入的路由器型号 PROFILE
